@@ -1,18 +1,35 @@
-[project]
+[tool.poetry]
 name = "vmstat-visualizer"
-version = "0.1.0"
-description = "A python CLI tool that visualizes vmstat output."
+description = "vmstat-visualizer creates graphs from vmstat outputs"
 authors = [
-    {name = "nikfot",email = "nik_fot@hotmail.gr"}
+    "Nikos Fotiou <nik_fot@hotmail.gr>" 
 ]
-license = {text = "MIT"}
+version ="0.1.0"
+homepage = "https://nikfot.github.io/vmstat-visualizer/"
+repository = "https://github.com/nikfot/vmstat-visualizer"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "click (>=8.2.1,<9.0.0)"
+keywords = ["vmstat", "stats","visualize","png", "graph"]
+license = "GPL-3.0-or-later"
+classifiers = [
+    "Topic :: System :: Monitoring",
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
 ]
-
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core>=1.0.0","setuptools>=59.6.0","setuptools-scm>=7.0.5"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+vmstat-visualizer = "vmstat-visualizer.cli.__main__:main"
+
+[tool.poetry.dependencies]
+python = ">=3.13.2"
+click = "8.2.1"
+
+[tool.setuptools_scm]
+write_to = "netcdfella/cli/__version__.py"
+

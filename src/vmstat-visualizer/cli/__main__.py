@@ -16,8 +16,6 @@ def cli():
 def main():
     "main is the entrypoint of vmstat-visualizer"
     cli.add_command(watcher.watch)
-    cli.add_command(server.serve)
-    cli.add_command(converter.convert)
     cli(prog_name="vmstat-visualizer")
 
 
