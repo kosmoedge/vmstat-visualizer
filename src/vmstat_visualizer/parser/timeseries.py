@@ -3,7 +3,6 @@ Timeseries module implements the timeseries class.
 A timeseries is a sequence of data points, typically consisting of
 successive measurements made over a time interval.
 """
-from vmstat_visualizer.checks.check import check_vmstat_columns
 
 class Timeseries:
     """
@@ -80,11 +79,6 @@ class Timeseries:
         names and appends values to corresponding lists.
         Assumes raw_data is a list of dicts, each representing a data point.
         """
-        has_st, has_gu = check_vmstat_columns()
-        if has_st and has_gu:
-            print("System supports 'st' and 'gu' columns.")
-        else:
-            print(f"Missing columns: st={not has_st}, gu={not has_gu}")
         headers = [
             'r', 'b', 'swpd', 'free', 'inact', 'active', 'si', 'so',
             'bi', 'bo', 'in', 'cs', 'us', 'sy', 'id', 'wa', 'st', 'gu', "time"
