@@ -1,4 +1,6 @@
 import re
+import datetime
+import time
 
 """
 Creates a file parser.
@@ -97,7 +99,10 @@ def plot(self, output_file_prefix='vmstat', output_format='png'):
     plt.ylabel('Processes')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'{output_file_prefix}_system_load.{output_format}')
+    now = datetime.datetime.now().replace(second=0, microsecond=0)
+    now_unix = int(time.mktime(now.timetuple()))
+
+    plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}')
     plt.close()
 
     # 2. Memory Usage

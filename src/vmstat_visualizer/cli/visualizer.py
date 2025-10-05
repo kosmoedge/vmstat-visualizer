@@ -19,7 +19,6 @@ from vmstat_visualizer.parser.parser import Parser
     default="png",
     help="set the output extension for created files.",
 )
-
 def visualize(
     file, output_prefix, output_extension
 ):
