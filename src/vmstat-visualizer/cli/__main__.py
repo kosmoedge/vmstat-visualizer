@@ -3,7 +3,6 @@ This is the entrypoint to netcdfella app.
 """
 import click
 
-from netcdfella.cli import converter, server, watcher
 
 
 @click.group("vmstat-visualizer", no_args_is_help=True)
