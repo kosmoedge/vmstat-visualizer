@@ -8,6 +8,7 @@ import time
 import vmstat_visualizer.parser.timeseries as ts
 import matplotlib.pyplot as plt
 from vmstat_visualizer.checks.check import check_vmstat_columns
+from matplotlib.dates import DateFormatter
 
 
 class Parser:
@@ -59,6 +60,7 @@ class Parser:
 
     def plot(self, output_file_prefix='vmstat', output_format='png'):
         import matplotlib.ticker as ticker
+        tstart = self.timeseries[0].time if self.timeseries else 'N/A'
         t = []
         run_queue = []
         blocked_processes = []
@@ -77,7 +79,8 @@ class Parser:
         blocks_in = []
         blocks_out = []
         for ts_entry in self.timeseries:
-            t.append(ts_entry.time)
+            t_dt = datetime.datetime.strptime(ts_entry.time, '%Y-%m-%d %H:%M:%S')
+            t.append(t_dt.strftime('%M:%S'))
             run_queue.append(ts_entry.run_queue)
             blocked_processes.append(ts_entry.blocked_processes)
             free_memory_kb.append(ts_entry.free_memory_kb)
@@ -94,16 +97,21 @@ class Parser:
             swap_out_kb.append(ts_entry.swap_out_kb)
             blocks_in.append(ts_entry.blocks_in)
             blocks_out.append(ts_entry.blocks_out)
-        print(inactive_memory_kb, active_memory_kb, free_memory_kb)
         def force_numeric(ax):
             ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=False))
             ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
             ax.ticklabel_format(style='plain', axis='y')
             ax.autoscale(enable=True, axis='y', tight=True)
+
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
+        now_unix = int(time.mktime(now.timetuple()))
         # 1. System Load
         plt.figure(figsize=(10, 4))
-        plt.plot(t, run_queue, label='Running Queue (r)')
-        plt.plot(t, blocked_processes, label='Blocked Processes (b)')
+        # Convert run_queue and blocked_processes to integers for plotting
+        run_queue_int = [int(x) for x in run_queue]
+        blocked_processes_int = [int(x) for x in blocked_processes]
+        plt.plot(t, run_queue_int, label='Running Queue (r)')
+        plt.plot(t, blocked_processes_int, label='Blocked Processes (b)')
         plt.title('System Load')
         plt.xlabel('Seconds')
         plt.ylabel('Processes')
@@ -111,9 +119,12 @@ class Parser:
         plt.tight_layout()
         ax = plt.gca()
         force_numeric(ax)
-        now = datetime.datetime.now().replace(second=0, microsecond=0)
-        now_unix = int(time.mktime(now.timetuple()))
-        plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}')
+        plt.xticks(rotation=45)
+        if t:
+            plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+        # Set y-axis lower limit to 0 for better fit
+        ax.set_ylim(bottom=0)
+        plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
         # 2. Memory Usage
         plt.figure(figsize=(10, 4))
@@ -134,20 +145,24 @@ class Parser:
         plt.tight_layout()
         ax = plt.gca()
         force_numeric(ax)
+        plt.xticks(rotation=45)
+        if t:
+            plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
         # Set y-axis limit a bit higher than the max value for better display
         all_memory = inactive_memory_kb_int + active_memory_kb_int + swapped_memory_kb_int + free_memory_kb_int
         if all_memory:
             ymax = max(all_memory) * 1.05
             ax.set_ylim(top=ymax)
-        plt.savefig(f'{output_file_prefix}_memory_{now_unix}.{output_format}')
+        ax.set_ylim(bottom=0)
+        plt.savefig(f'{output_file_prefix}_memory_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
         # 3. CPU Usage
         plt.figure(figsize=(10, 4))
-        plt.plot(t, user_cpu_percent, label='User CPU (%)')
-        plt.plot(t, system_cpu_percent, label='System CPU (%)')
-        plt.plot(t, idle_cpu_percent, label='Idle CPU (%)')
-        plt.plot(t, wait_cpu_percent, label='Wait CPU (%)')
-        plt.plot(t, steal_cpu_percent, label='Steal CPU (%)')
+        plt.plot(t, [int(x) for x in user_cpu_percent], label='User CPU (%)')
+        plt.plot(t, [int(x) for x in system_cpu_percent], label='System CPU (%)')
+        plt.plot(t, [int(x) for x in idle_cpu_percent], label='Idle CPU (%)')
+        plt.plot(t, [int(x) for x in wait_cpu_percent], label='Wait CPU (%)')
+        plt.plot(t, [int(x) for x in steal_cpu_percent], label='Steal CPU (%)')
         plt.title('CPU Usage (%)')
         plt.xlabel('Seconds')
         plt.ylabel('Percent')
@@ -155,13 +170,17 @@ class Parser:
         plt.tight_layout()
         ax = plt.gca()
         force_numeric(ax)
-        plt.savefig(f'{output_file_prefix}_cpu_{now_unix}.{output_format}')
+        plt.xticks(rotation=45)
+        if t:
+            plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+        ax.set_ylim(bottom=0)
+        plt.savefig(f'{output_file_prefix}_cpu_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
         # 4. Swap
         plt.figure(figsize=(10, 4))
-        plt.plot(t, swapped_memory_kb, label='Swapped Memory (KB)')
-        plt.plot(t, swap_in_kb, label='Swap In (KB)')
-        plt.plot(t, swap_out_kb, label='Swap Out (KB)')
+        plt.plot(t, [int(x) for x in swapped_memory_kb], label='Swapped Memory (KB)')
+        plt.plot(t, [int(x) for x in swap_in_kb], label='Swap In (KB)')
+        plt.plot(t, [int(x) for x in swap_out_kb], label='Swap Out (KB)')
         plt.title('Swap Usage')
         plt.xlabel('Seconds')
         plt.ylabel('Swap (KB)')
@@ -169,12 +188,16 @@ class Parser:
         plt.tight_layout()
         ax = plt.gca()
         force_numeric(ax)
-        plt.savefig(f'{output_file_prefix}_swap_{now_unix}.{output_format}')
+        plt.xticks(rotation=45)
+        if t:
+            plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+        ax.set_ylim(bottom=0)
+        plt.savefig(f'{output_file_prefix}_swap_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
         # 5. IO
         plt.figure(figsize=(10, 4))
-        plt.plot(t, blocks_in, label='Blocks In')
-        plt.plot(t, blocks_out, label='Blocks Out')
+        plt.plot(t, [int(x) for x in blocks_in], label='Blocks In')
+        plt.plot(t, [int(x) for x in blocks_out], label='Blocks Out')
         plt.title('IO')
         plt.xlabel('Seconds')
         plt.ylabel('Blocks')
@@ -182,5 +205,9 @@ class Parser:
         plt.tight_layout()
         ax = plt.gca()
         force_numeric(ax)
-        plt.savefig(f'{output_file_prefix}_io.{output_format}')
+        plt.xticks(rotation=45)
+        if t:
+            plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+        ax.set_ylim(bottom=0)
+        plt.savefig(f'{output_file_prefix}_io_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
