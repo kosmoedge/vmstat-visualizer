@@ -4,6 +4,7 @@ A timeseries is a sequence of data points, typically consisting of
 successive measurements made over a time interval.
 """
 
+
 class Timeseries:
     """
     Timeseries class for handling time series data.
@@ -30,6 +31,8 @@ class Timeseries:
         self.swap_out_kb = None
         self.blocks_in = None
         self.blocks_out = None
+        self.interrupts = None  
+        self.context_switches = None  
         self.user_cpu_percent = None
         self.system_cpu_percent = None
         self.idle_cpu_percent = None
@@ -39,11 +42,32 @@ class Timeseries:
         self.raw_data = {}
 
     def __repr__(self):
-        return f"Timeseries(data_points={len(self.raw_data)})"
+        return (
+            f"Timeseries("
+            f"time={self.time}, "
+            f"run_queue={self.run_queue}, "
+            f"blocked_processes={self.blocked_processes}, "
+            f"swapped_memory_kb={self.swapped_memory_kb}, "
+            f"free_memory_kb={self.free_memory_kb}, "
+            f"inactive_memory_kb={self.inactive_memory_kb}, "
+            f"active_memory_kb={self.active_memory_kb}, "
+            f"swap_in_kb={self.swap_in_kb}, "
+            f"swap_out_kb={self.swap_out_kb}, "
+            f"blocks_in={self.blocks_in}, "
+            f"blocks_out={self.blocks_out}, "
+            f"user_cpu_percent={self.user_cpu_percent}, "
+            f"system_cpu_percent={self.system_cpu_percent}, "
+            f"idle_cpu_percent={self.idle_cpu_percent}, "
+            f"wait_cpu_percent={self.wait_cpu_percent}, "
+            f"steal_cpu_percent={self.steal_cpu_percent}, "
+            f"guest_cpu_percent={self.guest_cpu_percent}, "
+            f"raw_data={self.raw_data}"
+            f")"
+        )
 
     def add_data_point(self, point):
         """Adds a data point to the time series."""
-        self.raw_data.append(point)
+        self.raw_data = point
 
     def get_data(self):
         """Returns the list of data points in the time series."""
@@ -56,9 +80,11 @@ class Timeseries:
         names and appends values to corresponding lists.
         Assumes raw_data is a list of dicts, each representing a data point.
         """
-        # Mapping from raw_data keys to attribute names
+        headers = [
+            'r', 'b', 'swpd', 'free', 'inact', 'active', 'si', 'so',
+            'bi', 'bo', 'in', 'cs', 'us', 'sy', 'id', 'wa', 'st', 'gu', "time"
+        ]
         key_map = {
-            'time': 'time',
             'r': 'run_queue',
             'b': 'blocked_processes',
             'swpd': 'swapped_memory_kb',
@@ -69,21 +95,16 @@ class Timeseries:
             'so': 'swap_out_kb',
             'bi': 'blocks_in',
             'bo': 'blocks_out',
+            'in': 'interrupts',
+            'cs': 'context_switches',
             'us': 'user_cpu_percent',
             'sy': 'system_cpu_percent',
             'id': 'idle_cpu_percent',
             'wa': 'wait_cpu_percent',
             'st': 'steal_cpu_percent',
-            'gu': 'guest_cpu_percent'
+            'gu': 'guest_cpu_percent',
+            "time": "time"
         }
-        # Initialize lists for each attribute if not already done
-        for attr in key_map.values():
-            if getattr(self, attr) is None:
-                setattr(self, attr, [])
-        # Commit raw data to attributes
-        for point in self.raw_data:
-            for raw_key, attr in key_map.items():
-                if raw_key in point:
-                    getattr(self, attr).append(point[raw_key])
-
-    
+        for idx, row in enumerate(self.raw_data):
+            attr = key_map[headers[idx]]
+            setattr(self, attr, row)

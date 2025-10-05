@@ -19,6 +19,7 @@ from vmstat_visualizer.parser.parser import Parser
     default="png",
     help="set the output kind for conversion.",
 )
+
 def visualize(
     file, output_dir, output_kinds
 ):
@@ -29,5 +30,5 @@ def visualize(
     parser = Parser(file)
     parser.parse()
     print(f">>> Parsed {len(parser.timeseries)} time series entries.")
-    
+
     # Here you would add code to generate visualizations from parser.timeseries

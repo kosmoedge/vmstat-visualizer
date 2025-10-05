@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "vmstat-visualizer"
-description = "vmstat-visualizer creates graphs from vmstat outputs"
+name = "vmstat_visualizer"
+description = "vmstat_visualizer creates graphs from vmstat outputs"
 authors = [
     "Nikos Fotiou <nik_fot@hotmail.gr>" 
 ]
@@ -18,13 +18,16 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
 ]
+packages = [
+    { include = "vmstat_visualizer", from = "src"}
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0","setuptools>=59.6.0","setuptools-scm>=7.0.5"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-vmstat-visualizer = "vmstat-visualizer.cli.__main__:main"
+vmstat-visualizer = "vmstat_visualizer.cli.__main__:main"
 
 [tool.poetry.dependencies]
 python = ">=3.13.2"

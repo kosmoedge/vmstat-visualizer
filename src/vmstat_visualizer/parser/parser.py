@@ -1,3 +1,5 @@
+import re
+
 """
 Creates a file parser.
 """
@@ -30,8 +32,21 @@ class Parser:
         with open(self.filename, 'r') as file:
             data = file.readlines()
             for line in data:
-                timeseries_entry = ts.TimeSeries()
-                timeseries_entry.add_data_point(line.strip())
+                timeseries_entry = ts.Timeseries()
+                # Regex to match a timestamp like '2025-07-31 23:52:52'
+                time_regex = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
+
+                parts = line.strip().split()
+                if len(parts) < 3:
+                    continue 
+                data_points = []
+                if len(parts) >= 2 and time_regex.match(" ".join(parts[-2:])):
+                    time_column = " ".join(parts[-2:])
+                    data_points = [item.strip() for item in parts[:-2]] + [time_column]
+                else:
+                    time_column = " ".join(parts[:2])
+                    data_points = [time_column] + [item.strip() for item in parts[2:]]
+                timeseries_entry.add_data_point(data_points)
                 timeseries_entry.commit_raw_data()
                 self.timeseries.append(timeseries_entry)
 
@@ -138,4 +153,3 @@ def plot(self, output_file_prefix='vmstat', output_format='png'):
     plt.tight_layout()
     plt.savefig(f'{output_file_prefix}_io.{output_format}')
     plt.close()
-
