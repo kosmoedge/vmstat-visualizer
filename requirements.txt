@@ -10,4 +10,3 @@ pillow==11.3.0
 pyparsing==3.2.5
 python-dateutil==2.9.0.post0
 six==1.17.0
--e git+ssh://git@github.com/kosmoedge/vmstat-visualizer.git@12504e9f6dc0d8f4c91b629b5e88eac62fc51753#egg=vmstat_visualizer
