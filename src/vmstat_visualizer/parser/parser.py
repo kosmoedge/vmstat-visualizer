@@ -43,10 +43,23 @@ class Parser:
                 timeseries_entry = ts.Timeseries()
                 # Regex to match a timestamp like '2025-07-31 23:52:52'
                 time_regex = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
-
+                if ("procs" or "memory" or "cpu" in line) or ("free" in line or "inact" in line or "active" in line):
+                    continue  # Skip header lines
+                if not line.strip():
+                    continue  # Skip empty lines
                 parts = line.strip().split()
                 if len(parts) < 3:
-                    continue 
+                    continue
+                # Skip lines where any part is not a digit
+                # if any(not part.isdigit() for part in parts):
+                #     continue
+                # isDataLine = True
+                # for part in parts:
+                #     if not part.replace('.', '', 1).replace('-', '', 1).isdigit():
+                #         isDataLine = False
+                #         break
+                # if not isDataLine:
+                #     continue
                 data_points = []
                 if len(parts) >= 2 and time_regex.match(" ".join(parts[-2:])):
                     time_column = " ".join(parts[-2:])
