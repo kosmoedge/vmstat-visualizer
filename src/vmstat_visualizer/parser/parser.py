@@ -43,7 +43,7 @@ class Parser:
                 timeseries_entry = ts.Timeseries()
                 # Regex to match a timestamp like '2025-07-31 23:52:52'
                 time_regex = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
-                if ("procs" or "memory" or "cpu" in line) or ("free" in line or "inact" in line or "active" in line):
+                if ("procs" in line or "memory" in line or "cpu" in line) or ("free" in line or "inact" in line or "active" in line):
                     continue  # Skip header lines
                 if not line.strip():
                     continue  # Skip empty lines
@@ -135,6 +135,7 @@ class Parser:
         plt.xticks(rotation=45)
         if t:
             plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+            plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
         # Set y-axis lower limit to 0 for better fit
         ax.set_ylim(bottom=0)
         plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}', bbox_inches='tight')
@@ -161,6 +162,7 @@ class Parser:
         plt.xticks(rotation=45)
         if t:
             plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+            plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
         # Set y-axis limit a bit higher than the max value for better display
         all_memory = inactive_memory_kb_int + active_memory_kb_int + swapped_memory_kb_int + free_memory_kb_int
         if all_memory:
@@ -186,6 +188,7 @@ class Parser:
         plt.xticks(rotation=45)
         if t:
             plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+            plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
         ax.set_ylim(bottom=0)
         plt.savefig(f'{output_file_prefix}_cpu_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
@@ -204,6 +207,7 @@ class Parser:
         plt.xticks(rotation=45)
         if t:
             plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+            plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
         ax.set_ylim(bottom=0)
         plt.savefig(f'{output_file_prefix}_swap_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
@@ -221,6 +225,7 @@ class Parser:
         plt.xticks(rotation=45)
         if t:
             plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
+            plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
         ax.set_ylim(bottom=0)
         plt.savefig(f'{output_file_prefix}_io_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
