@@ -75,76 +75,41 @@ class Parser:
     def plot(self, output_file_prefix='vmstat', output_format='png'):
         import matplotlib.ticker as ticker
         tstart = self.timeseries[0].time if self.timeseries else 'N/A'
-        t = []
-        run_queue = []
-        blocked_processes = []
-        free_memory_kb = []
-        inactive_memory_kb = []
-        active_memory_kb = []
-        swapped_memory_kb = []
-        user_cpu_percent = []
-        system_cpu_percent = []
-        idle_cpu_percent = []
-        wait_cpu_percent = []
-        steal_cpu_percent = []
-        guest_cpu_percent = []
-        swap_in_kb = []
-        swap_out_kb = []
-        blocks_in = []
-        blocks_out = []
-        for ts_entry in self.timeseries:
-            t_dt = datetime.datetime.strptime(ts_entry.time, '%Y-%m-%d %H:%M:%S')
-            t.append(t_dt.strftime('%M:%S'))
-            run_queue.append(ts_entry.run_queue)
-            blocked_processes.append(ts_entry.blocked_processes)
-            free_memory_kb.append(ts_entry.free_memory_kb)
-            inactive_memory_kb.append(ts_entry.inactive_memory_kb)
-            active_memory_kb.append(ts_entry.active_memory_kb)
-            swapped_memory_kb.append(ts_entry.swapped_memory_kb)
-            user_cpu_percent.append(ts_entry.user_cpu_percent)
-            system_cpu_percent.append(ts_entry.system_cpu_percent)
-            idle_cpu_percent.append(ts_entry.idle_cpu_percent)
-            wait_cpu_percent.append(ts_entry.wait_cpu_percent)
-            steal_cpu_percent.append(ts_entry.steal_cpu_percent)
-            guest_cpu_percent.append(ts_entry.guest_cpu_percent)
-            swap_in_kb.append(ts_entry.swap_in_kb)
-            swap_out_kb.append(ts_entry.swap_out_kb)
-            blocks_in.append(ts_entry.blocks_in)
-            blocks_out.append(ts_entry.blocks_out)
+        plot_metrics = self.PlotMetrics(self.timeseries)
         now = datetime.datetime.now().replace(second=0, microsecond=0)
         now_unix = int(time.mktime(now.timetuple()))
 
         # 1. System Load
-        self.plot_metric('system_load', run_queue=run_queue,
-                         blocked_processes=blocked_processes,
-                         t=t, tstart=tstart,
+        self.plot_metric('system_load', run_queue=plot_metrics.run_queue,
+                         blocked_processes=plot_metrics.blocked_processes,
+                         t=plot_metrics.t, tstart=tstart,
                          output_file_prefix=output_file_prefix,
                          output_format=output_format,
                          now_unix=now_unix)
         # 2. Memory Usage
-        self.plot_metric('memory', inactive_memory_kb=inactive_memory_kb,
-                         active_memory_kb=active_memory_kb,
-                         swapped_memory_kb=swapped_memory_kb,
-                         free_memory_kb=free_memory_kb, t=t,
+        self.plot_metric('memory', inactive_memory_kb=plot_metrics.inactive_memory_kb,
+                         active_memory_kb=plot_metrics.active_memory_kb,
+                         swapped_memory_kb=plot_metrics.swapped_memory_kb,
+                         free_memory_kb=plot_metrics.free_memory_kb, t=plot_metrics.t,
                          tstart=tstart, output_file_prefix=output_file_prefix,
                          output_format=output_format, now_unix=now_unix)
         # 3. CPU Usage
-        self.plot_metric('cpu', user_cpu_percent=user_cpu_percent,
-                         system_cpu_percent=system_cpu_percent,
-                         idle_cpu_percent=idle_cpu_percent,
-                         wait_cpu_percent=wait_cpu_percent,
-                         steal_cpu_percent=steal_cpu_percent,
-                         t=t, tstart=tstart,
+        self.plot_metric('cpu', user_cpu_percent=plot_metrics.user_cpu_percent,
+                         system_cpu_percent=plot_metrics.system_cpu_percent,
+                         idle_cpu_percent=plot_metrics.idle_cpu_percent,
+                         wait_cpu_percent=plot_metrics.wait_cpu_percent,
+                         steal_cpu_percent=plot_metrics.steal_cpu_percent,
+                         t=plot_metrics.t, tstart=tstart,
                          output_file_prefix=output_file_prefix,
                          output_format=output_format, now_unix=now_unix)
         # 4. Swap
-        self.plot_metric('swap', swapped_memory_kb=swapped_memory_kb,
-                         swap_in_kb=swap_in_kb, swap_out_kb=swap_out_kb,
-                         t=t, tstart=tstart, output_file_prefix=output_file_prefix,
+        self.plot_metric('swap', swapped_memory_kb=plot_metrics.swapped_memory_kb,
+                         swap_in_kb=plot_metrics.swap_in_kb, swap_out_kb=plot_metrics.swap_out_kb,
+                         t=plot_metrics.t, tstart=tstart, output_file_prefix=output_file_prefix,
                          output_format=output_format, now_unix=now_unix)
         # 5. IO
-        self.plot_metric('io', blocks_in=blocks_in,
-                         blocks_out=blocks_out, t=t,
+        self.plot_metric('io', blocks_in=plot_metrics.blocks_in,
+                         blocks_out=plot_metrics.blocks_out, t=plot_metrics.t,
                          tstart=tstart, output_file_prefix=output_file_prefix,
                          output_format=output_format, now_unix=now_unix)
 
@@ -322,3 +287,42 @@ class Parser:
         plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
         plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
         return plt
+
+    class PlotMetrics:
+        def __init__(self, timeseries):
+            self.t = []
+            self.run_queue = []
+            self.blocked_processes = []
+            self.free_memory_kb = []
+            self.inactive_memory_kb = []
+            self.active_memory_kb = []
+            self.swapped_memory_kb = []
+            self.user_cpu_percent = []
+            self.system_cpu_percent = []
+            self.idle_cpu_percent = []
+            self.wait_cpu_percent = []
+            self.steal_cpu_percent = []
+            self.guest_cpu_percent = []
+            self.swap_in_kb = []
+            self.swap_out_kb = []
+            self.blocks_in = []
+            self.blocks_out = []
+            for ts_entry in timeseries:
+                t_dt = datetime.datetime.strptime(ts_entry.time, '%Y-%m-%d %H:%M:%S')
+                self.t.append(t_dt.strftime('%M:%S'))
+                self.run_queue.append(ts_entry.run_queue)
+                self.blocked_processes.append(ts_entry.blocked_processes)
+                self.free_memory_kb.append(ts_entry.free_memory_kb)
+                self.inactive_memory_kb.append(ts_entry.inactive_memory_kb)
+                self.active_memory_kb.append(ts_entry.active_memory_kb)
+                self.swapped_memory_kb.append(ts_entry.swapped_memory_kb)
+                self.user_cpu_percent.append(ts_entry.user_cpu_percent)
+                self.system_cpu_percent.append(ts_entry.system_cpu_percent)
+                self.idle_cpu_percent.append(ts_entry.idle_cpu_percent)
+                self.wait_cpu_percent.append(ts_entry.wait_cpu_percent)
+                self.steal_cpu_percent.append(ts_entry.steal_cpu_percent)
+                self.guest_cpu_percent.append(ts_entry.guest_cpu_percent)
+                self.swap_in_kb.append(ts_entry.swap_in_kb)
+                self.swap_out_kb.append(ts_entry.swap_out_kb)
+                self.blocks_in.append(ts_entry.blocks_in)
+                self.blocks_out.append(ts_entry.blocks_out)
