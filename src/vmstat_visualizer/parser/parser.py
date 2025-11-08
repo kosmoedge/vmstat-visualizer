@@ -119,8 +119,8 @@ class Parser:
         output_format='png',
         metric='cpu'
     ):
-        # Placeholder for comparison plotting logic
-        pass
+        plot_metrics = self.PlotMetrics(self.timeseries, relative_time=True)
+        compare_plot_metrics = self.PlotMetrics(compare_parser.timeseries, relative_time=True)
 
     def force_numeric(self,ax):
         import matplotlib.ticker as ticker
@@ -161,14 +161,26 @@ class Parser:
         else:
             raise ValueError(f"Unknown metric: {metric}")
 
-    def _plot_system_load(self, run_queue, blocked_processes, t, tstart, output_file_prefix, output_format, now_unix):
+    def _plot_system_load(self, run_queue, blocked_processes, t, tstart, output_file_prefix, output_format, now_unix, comparison=False):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
         # Convert run_queue and blocked_processes to integers for plotting
-        run_queue_int = [int(x) for x in run_queue]
-        blocked_processes_int = [int(x) for x in blocked_processes]
-        plt.plot(t, run_queue_int, label='Running Queue (r)')
-        plt.plot(t, blocked_processes_int, label='Blocked Processes (b)')
+        if not comparison:
+            run_queue_int = [int(x) for x in run_queue]
+            blocked_processes_int = [int(x) for x in blocked_processes]
+            plt.plot(t, run_queue_int, label='Running Queue (r)')
+            plt.plot(t, blocked_processes_int, label='Blocked Processes (b)')
+        else:
+            run_queue_int0 = [int(x) for x in run_queue[0]]
+            blocked_processes_int0 = [int(x) for x in blocked_processes[0]]
+            run_queue_int1 = [int(x) for x in run_queue[1]]
+            blocked_processes_int1 = [int(x) for x in blocked_processes[1]]
+            # File 1: shades of purple
+            plt.plot(t, [int(x) for x in run_queue[0]], label='Running Queue (r) - File 1', color='#8e44ad')
+            plt.plot(t, [int(x) for x in blocked_processes[0]], label='Blocked Processes (b) - File 1', color='#d2b4de')
+            # File 2: shades of blue
+            plt.plot(t, [int(x) for x in run_queue[1]], label='Running Queue (r) - File 2', color='#2980b9')
+            plt.plot(t, [int(x) for x in blocked_processes[1]], label='Blocked Processes (b) - File 2', color='#aed6f1')
         plt.title('System Load')
         plt.xlabel('Seconds')
         plt.ylabel('Processes')
@@ -289,7 +301,7 @@ class Parser:
         return plt
 
     class PlotMetrics:
-        def __init__(self, timeseries):
+        def __init__(self, timeseries, relative_time=False):
             self.t = []
             self.run_queue = []
             self.blocked_processes = []
@@ -307,9 +319,13 @@ class Parser:
             self.swap_out_kb = []
             self.blocks_in = []
             self.blocks_out = []
+            self._counter = self._counter_gen()
             for ts_entry in timeseries:
                 t_dt = datetime.datetime.strptime(ts_entry.time, '%Y-%m-%d %H:%M:%S')
-                self.t.append(t_dt.strftime('%M:%S'))
+                if not relative_time:
+                    self.t.append(t_dt.strftime('%M:%S'))
+                else: 
+                    self.t.append(next(self._counter))
                 self.run_queue.append(ts_entry.run_queue)
                 self.blocked_processes.append(ts_entry.blocked_processes)
                 self.free_memory_kb.append(ts_entry.free_memory_kb)
@@ -326,3 +342,10 @@ class Parser:
                 self.swap_out_kb.append(ts_entry.swap_out_kb)
                 self.blocks_in.append(ts_entry.blocks_in)
                 self.blocks_out.append(ts_entry.blocks_out)
+
+        @staticmethod
+        def _counter_gen():
+            n = 0
+            while True:
+                yield n
+                n += 1

@@ -45,5 +45,5 @@ python-dateutil = "2.9.0.post0"
 six = "1.17.0"
 
 [tool.setuptools_scm]
-write_to = "netcdfella/cli/__version__.py"
+write_to = "vmstat_visualizer/cli/__version__.py"
 

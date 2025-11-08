@@ -41,7 +41,7 @@ def visualize(
 @click.option(
     "-m",
     "--metric",
-    type=click.Choice(["cpu", "memory"], case_sensitive=False),
+    type=click.Choice(["cpu", "memory", "system_load"], case_sensitive=False),
     required=True,
     help="Metric to compare: 'cpu' or 'memory'."
 )
@@ -69,7 +69,7 @@ def compare(file1, file2, metric, output_prefix, output_extension):
     parser2.parse()
     print(f">>> Parsed {len(parser2.timeseries)} time series entries from {file2}.")
     parser1.plot_comparison(
-        parser1.timeseries, parser2.timeseries,
+        compare_parser=parser2,
         output_file_prefix=output_prefix,
         output_format=output_extension,
         metric=metric
