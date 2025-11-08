@@ -6,6 +6,17 @@ A CLI tool for creating plots from vmstat output files. Generates PNG/SVG charts
 
 Takes vmstat log files and produces time-series graphs. You can visualize a single file or compare two files side-by-side.
 
+## Why use this?
+
+This tool is useful when you need system metrics but can't or don't want to run a monitoring agent:
+
+- **Testing environments**: Capture metrics during tests without the overhead of monitoring infrastructure
+- **Limited resources**: On systems like Raspberry Pi or embedded devices where monitoring agents would consume precious memory and CPU
+- **Non-production systems**: Quick performance checks without setting up full monitoring stacks
+- **Minimal impact**: vmstat itself is lightweight and won't skew your performance results
+
+Basically, if you can run `vmstat`, you can get charts. No agents, no daemons, no network dependencies.
+
 ## Requirements
 
 - Python 3.7+
@@ -136,6 +147,22 @@ vmstat-visualizer compare test1.log test2.log -m memory -e svg -o memory-compari
 - Y-axis starts at 0 for better visual comparison
 - Font size is reduced in comparison mode to fit more legend entries
 - The tool handles different vmstat column availability across systems
+
+## TODO / Known Limitations
+
+**vmstat flags requirement:**
+
+Currently, the tool expects `vmstat -a` output because it looks for `inact` (inactive) and `active` memory columns. Without the `-a` flag, vmstat shows different memory columns (`buff`, `cache`) which aren't currently parsed.
+
+```bash
+# Works with this
+vmstat -a -t 1 > vmstat.log
+
+# Standard vmstat (buff/cache columns) - not yet supported
+vmstat -t 1 > vmstat.log
+```
+
+Future work includes expanding column support to handle standard vmstat output without the `-a` flag, including `buff` and `cache` columns.
 
 ## License
 
