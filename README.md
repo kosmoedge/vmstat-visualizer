@@ -124,6 +124,16 @@ Charts show:
 - **Comparison**: Relative time (seconds), File 1 shown with solid lines, File 2 with dashed lines
 - **Filenames**: Displayed in legend for comparisons (basename only)
 
+### Example outputs
+
+**Single file visualization:**
+
+![CPU Usage Example](example_cpu.png)
+
+**File comparison:**
+
+![Comparison Example](example_comparison.png)
+
 ## Examples
 
 ```bash
