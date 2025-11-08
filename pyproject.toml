@@ -2,7 +2,8 @@
 name = "vmstat_visualizer"
 description = "vmstat_visualizer creates graphs from vmstat outputs"
 authors = [
-    "Nikos Fotiou <nik_fot@hotmail.gr>" 
+    "Nikos Fotiou <nik_fot@hotmail.gr>",
+    "Dimitris Fotiou <dfotiou.tech@gmail.com>"
 ]
 version ="0.1.0"
 homepage = "https://nikfot.github.io/vmstat-visualizer/"
