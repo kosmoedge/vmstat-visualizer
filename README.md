@@ -174,6 +174,28 @@ vmstat -t 1 > vmstat.log
 
 Future work includes expanding column support to handle standard vmstat output without the `-a` flag, including `buff` and `cache` columns.
 
+## Development
+
+### Versioning and Releases
+
+See [VERSIONING.md](VERSIONING.md) for details on:
+- Creating new releases
+- Version bumping
+- Publishing to PyPI
+- Automated releases with GitHub Actions
+
+Quick commands:
+```bash
+# Bump version (patch/minor/major)
+./scripts/bump-version.sh patch
+
+# Create release (commit, tag, push)
+./scripts/release.sh
+
+# Build and publish to PyPI
+./scripts/publish.sh
+```
+
 ## License
 
 MIT
