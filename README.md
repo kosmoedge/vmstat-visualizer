@@ -128,11 +128,11 @@ Charts show:
 
 **Single file visualization:**
 
-![CPU Usage Example](example_cpu.png)
+![CPU Usage Example](examples/graphs/example_cpu.png)
 
 **File comparison:**
 
-![Comparison Example](example_comparison.png)
+![Comparison Example](examples/graphs/example_comparison.png)
 
 ## Examples
 
