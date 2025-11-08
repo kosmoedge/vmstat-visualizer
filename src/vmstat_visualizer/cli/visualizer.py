@@ -41,9 +41,9 @@ def visualize(
 @click.option(
     "-m",
     "--metric",
-    type=click.Choice(["cpu", "memory", "system_load"], case_sensitive=False),
+    type=click.Choice(["cpu", "memory", "system_load", "swap", "io", "all"], case_sensitive=False),
     required=True,
-    help="Metric to compare: 'cpu' or 'memory'."
+    help="Metric to compare: 'cpu', 'memory', 'system_load', 'swap', 'io', or 'all'."
 )
 @click.option(
     "-o",
@@ -57,10 +57,31 @@ def visualize(
     default="png",
     help="set the output extension for created files.",
 )
-def compare(file1, file2, metric, output_prefix, output_extension):
+@click.option(
+    "-c",
+    "--column",
+    type=click.Choice(["r", "b", "swpd",
+                       "free", "si", "so",
+                       "us", "sy",
+                       "id", "wa", "st",
+                       "inact", "active"], case_sensitive=False),
+    multiple=True,
+    help="""Specific column(s) to visualize. Can be specified multiple times. For each metric, the relevant columns are:\n
+    - cpu: us, sy, id, wa, st\n
+    - memory: swpd, free, inact, active\n
+    - system_load: r, b, si, so\n
+    Example: -c us -c sy -c id
+    """
+)
+def compare(file1, file2, metric, output_prefix,
+            output_extension, column):
     """
     Compare two vmstat log files based on a given metric (cpu or memory).
     """
+    # Convert tuple to list (click returns tuple with multiple=True)
+    column = list(column) if column else []
+    if column:
+        print(f">>> Filtering columns: {', '.join(column)}")
     print(f">>> Comparing {file1} and {file2} on metric: {metric}")
     parser1 = Parser(file1)
     parser2 = Parser(file2)
@@ -72,5 +93,6 @@ def compare(file1, file2, metric, output_prefix, output_extension):
         compare_parser=parser2,
         output_file_prefix=output_prefix,
         output_format=output_extension,
-        metric=metric
+        metric=metric,
+        column=column
     )
