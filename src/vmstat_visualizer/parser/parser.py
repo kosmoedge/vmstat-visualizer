@@ -119,8 +119,73 @@ class Parser:
         output_format='png',
         metric='cpu'
     ):
+        import datetime
+        import time
+        import os
         plot_metrics = self.PlotMetrics(self.timeseries, relative_time=True)
         compare_plot_metrics = self.PlotMetrics(compare_parser.timeseries, relative_time=True)
+        
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
+        now_unix = int(time.mktime(now.timetuple()))
+        
+        tstart1 = self.timeseries[0].time if self.timeseries else 'N/A'
+        tstart2 = compare_parser.timeseries[0].time if compare_parser.timeseries else 'N/A'
+        
+        # Get filenames without parent directories
+        file1_name = os.path.basename(self.filename)
+        file2_name = os.path.basename(compare_parser.filename)
+        
+        # Align time axes - use the longer time series
+        max_len = max(len(plot_metrics.t), len(compare_plot_metrics.t))
+        t_aligned = list(range(max_len))
+        
+        if metric == 'cpu':
+            self._plot_cpu(
+                [plot_metrics.user_cpu_percent, compare_plot_metrics.user_cpu_percent],
+                [plot_metrics.system_cpu_percent, compare_plot_metrics.system_cpu_percent],
+                [plot_metrics.idle_cpu_percent, compare_plot_metrics.idle_cpu_percent],
+                [plot_metrics.wait_cpu_percent, compare_plot_metrics.wait_cpu_percent],
+                [plot_metrics.steal_cpu_percent, compare_plot_metrics.steal_cpu_percent],
+                t_aligned, [tstart1, tstart2], output_file_prefix, output_format, now_unix, 
+                comparison=True, filenames=[file1_name, file2_name]
+            )
+        elif metric == 'memory':
+            self._plot_memory(
+                [plot_metrics.inactive_memory_kb, compare_plot_metrics.inactive_memory_kb],
+                [plot_metrics.active_memory_kb, compare_plot_metrics.active_memory_kb],
+                [plot_metrics.swapped_memory_kb, compare_plot_metrics.swapped_memory_kb],
+                [plot_metrics.free_memory_kb, compare_plot_metrics.free_memory_kb],
+                t_aligned, [tstart1, tstart2], output_file_prefix, output_format, now_unix, 
+                comparison=True, filenames=[file1_name, file2_name]
+            )
+        elif metric == 'system_load':
+            self._plot_system_load(
+                [plot_metrics.run_queue, compare_plot_metrics.run_queue],
+                [plot_metrics.blocked_processes, compare_plot_metrics.blocked_processes],
+                t_aligned, [tstart1, tstart2], output_file_prefix, output_format, now_unix, 
+                comparison=True, filenames=[file1_name, file2_name]
+            )
+        elif metric == 'swap':
+            self._plot_swap(
+                [plot_metrics.swapped_memory_kb, compare_plot_metrics.swapped_memory_kb],
+                [plot_metrics.swap_in_kb, compare_plot_metrics.swap_in_kb],
+                [plot_metrics.swap_out_kb, compare_plot_metrics.swap_out_kb],
+                t_aligned, [tstart1, tstart2], output_file_prefix, output_format, now_unix, 
+                comparison=True, filenames=[file1_name, file2_name]
+            )
+        elif metric == 'io':
+            self._plot_io(
+                [plot_metrics.blocks_in, compare_plot_metrics.blocks_in],
+                [plot_metrics.blocks_out, compare_plot_metrics.blocks_out],
+                t_aligned, [tstart1, tstart2], output_file_prefix, output_format, now_unix, 
+                comparison=True, filenames=[file1_name, file2_name]
+            )
+        elif metric == 'all':
+            # Plot all metrics for comparison
+            for m in ['system_load', 'memory', 'cpu', 'swap', 'io']:
+                self.plot_comparison(compare_parser, output_file_prefix, output_format, metric=m)
+        else:
+            raise ValueError(f"Unknown metric: {metric}. Choose from: cpu, memory, system_load, swap, io, all")
 
     def force_numeric(self,ax):
         import matplotlib.ticker as ticker
@@ -161,7 +226,7 @@ class Parser:
         else:
             raise ValueError(f"Unknown metric: {metric}")
 
-    def _plot_system_load(self, run_queue, blocked_processes, t, tstart, output_file_prefix, output_format, now_unix, comparison=False):
+    def _plot_system_load(self, run_queue, blocked_processes, t, tstart, output_file_prefix, output_format, now_unix, comparison=False, filenames=None):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
         # Convert run_queue and blocked_processes to integers for plotting
@@ -170,134 +235,308 @@ class Parser:
             blocked_processes_int = [int(x) for x in blocked_processes]
             plt.plot(t, run_queue_int, label='Running Queue (r)')
             plt.plot(t, blocked_processes_int, label='Blocked Processes (b)')
+            plt.title('System Load')
+            plt.xlabel('Seconds')
         else:
             run_queue_int0 = [int(x) for x in run_queue[0]]
             blocked_processes_int0 = [int(x) for x in blocked_processes[0]]
             run_queue_int1 = [int(x) for x in run_queue[1]]
             blocked_processes_int1 = [int(x) for x in blocked_processes[1]]
-            # File 1: shades of purple
-            plt.plot(t, [int(x) for x in run_queue[0]], label='Running Queue (r) - File 1', color='#8e44ad')
-            plt.plot(t, [int(x) for x in blocked_processes[0]], label='Blocked Processes (b) - File 1', color='#d2b4de')
-            # File 2: shades of blue
-            plt.plot(t, [int(x) for x in run_queue[1]], label='Running Queue (r) - File 2', color='#2980b9')
-            plt.plot(t, [int(x) for x in blocked_processes[1]], label='Blocked Processes (b) - File 2', color='#aed6f1')
-        plt.title('System Load')
-        plt.xlabel('Seconds')
+            # Get filenames for labels
+            file1_label = filenames[0] if filenames else 'File 1'
+            file2_label = filenames[1] if filenames else 'File 2'
+            # File 1: shades of purple with solid lines
+            plt.plot(t[:len(run_queue[0])], [int(x) for x in run_queue[0]], 
+                    label=f'Running Queue (r) - {file1_label}', color='#8e44ad', linewidth=2)
+            plt.plot(t[:len(blocked_processes[0])], [int(x) for x in blocked_processes[0]], 
+                    label=f'Blocked Processes (b) - {file1_label}', color='#d2b4de', linewidth=2)
+            # File 2: shades of blue with dashed lines
+            plt.plot(t[:len(run_queue[1])], [int(x) for x in run_queue[1]], 
+                    label=f'Running Queue (r) - {file2_label}', color='#2980b9', linestyle='--', linewidth=2)
+            plt.plot(t[:len(blocked_processes[1])], [int(x) for x in blocked_processes[1]], 
+                    label=f'Blocked Processes (b) - {file2_label}', color='#aed6f1', linestyle='--', linewidth=2)
+            plt.title('System Load - Comparison')
+            plt.xlabel('Relative Time (seconds)')
+        
         plt.ylabel('Processes')
-        plt.legend()
+        plt.legend(loc='best', fontsize=8)
         plt.tight_layout()
         ax = plt.gca()
         self.force_numeric(ax)
         plt.xticks(rotation=45)
-        if t:
-            plt = self._set_figtext(plt, tstart)
+        
+        if comparison:
+            plt = self._set_figtext_comparison(plt, tstart)
+        else:
+            if t:
+                plt = self._set_figtext(plt, tstart)
+        
         # Set y-axis lower limit to 0 for better fit
         ax.set_ylim(bottom=0)
-        plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}', bbox_inches='tight')
+        
+        # Use different filename for comparison mode
+        suffix = 'comparison' if comparison else 'system_load'
+        if comparison:
+            plt.savefig(f'{output_file_prefix}_system_load_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+        else:
+            plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
 
-    def _plot_memory(self, inactive_memory_kb,
-                    active_memory_kb, swapped_memory_kb, free_memory_kb,
-                    t, tstart, output_file_prefix, output_format, now_unix):
+    def _plot_memory(self, inactive_memory_kb, active_memory_kb, swapped_memory_kb, free_memory_kb,
+                    t, tstart, output_file_prefix, output_format, now_unix, comparison=False, filenames=None):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
-        # Convert memory values to integers for plotting
-        inactive_memory_kb_int = [int(x) for x in inactive_memory_kb]
-        active_memory_kb_int = [int(x) for x in active_memory_kb]
-        swapped_memory_kb_int = [int(x) for x in swapped_memory_kb]
-        free_memory_kb_int = [int(x) for x in free_memory_kb]
-        plt.plot(t, inactive_memory_kb_int, label='Inactive Memory (KB)')
-        plt.plot(t, active_memory_kb_int, label='Active Memory (KB)')
-        plt.plot(t, swapped_memory_kb_int, label='Swapped Memory (KB)')
-        plt.plot(t, free_memory_kb_int, label='Free Memory (KB)')
-        plt.title('Memory Usage')
-        plt.xlabel('Seconds')
+        
+        if not comparison:
+            # Convert memory values to integers for plotting
+            inactive_memory_kb_int = [int(x) for x in inactive_memory_kb]
+            active_memory_kb_int = [int(x) for x in active_memory_kb]
+            swapped_memory_kb_int = [int(x) for x in swapped_memory_kb]
+            free_memory_kb_int = [int(x) for x in free_memory_kb]
+            plt.plot(t, inactive_memory_kb_int, label='Inactive Memory (KB)')
+            plt.plot(t, active_memory_kb_int, label='Active Memory (KB)')
+            plt.plot(t, swapped_memory_kb_int, label='Swapped Memory (KB)')
+            plt.plot(t, free_memory_kb_int, label='Free Memory (KB)')
+            plt.title('Memory Usage')
+            plt.xlabel('Seconds')
+            all_memory = inactive_memory_kb_int + active_memory_kb_int + swapped_memory_kb_int + free_memory_kb_int
+        else:
+            # Get filenames for labels
+            file1_label = filenames[0] if filenames else 'File 1'
+            file2_label = filenames[1] if filenames else 'File 2'
+            # File 1: darker colors with solid lines
+            plt.plot(t[:len(inactive_memory_kb[0])], [int(x) for x in inactive_memory_kb[0]], 
+                     label=f'Inactive Memory (KB) - {file1_label}', color='#e74c3c', linewidth=2)
+            plt.plot(t[:len(active_memory_kb[0])], [int(x) for x in active_memory_kb[0]], 
+                     label=f'Active Memory (KB) - {file1_label}', color='#3498db', linewidth=2)
+            plt.plot(t[:len(swapped_memory_kb[0])], [int(x) for x in swapped_memory_kb[0]], 
+                     label=f'Swapped Memory (KB) - {file1_label}', color='#f39c12', linewidth=2)
+            plt.plot(t[:len(free_memory_kb[0])], [int(x) for x in free_memory_kb[0]], 
+                     label=f'Free Memory (KB) - {file1_label}', color='#2ecc71', linewidth=2)
+            
+            # File 2: lighter colors with dashed lines
+            plt.plot(t[:len(inactive_memory_kb[1])], [int(x) for x in inactive_memory_kb[1]], 
+                     label=f'Inactive Memory (KB) - {file2_label}', color='#ec7063', linestyle='--', linewidth=2)
+            plt.plot(t[:len(active_memory_kb[1])], [int(x) for x in active_memory_kb[1]], 
+                     label=f'Active Memory (KB) - {file2_label}', color='#5dade2', linestyle='--', linewidth=2)
+            plt.plot(t[:len(swapped_memory_kb[1])], [int(x) for x in swapped_memory_kb[1]], 
+                     label=f'Swapped Memory (KB) - {file2_label}', color='#f8c471', linestyle='--', linewidth=2)
+            plt.plot(t[:len(free_memory_kb[1])], [int(x) for x in free_memory_kb[1]], 
+                     label=f'Free Memory (KB) - {file2_label}', color='#58d68d', linestyle='--', linewidth=2)
+            plt.title('Memory Usage - Comparison')
+            plt.xlabel('Relative Time (seconds)')
+            # Collect all memory values for y-axis scaling
+            all_memory = ([int(x) for x in inactive_memory_kb[0]] + [int(x) for x in active_memory_kb[0]] + 
+                         [int(x) for x in swapped_memory_kb[0]] + [int(x) for x in free_memory_kb[0]] +
+                         [int(x) for x in inactive_memory_kb[1]] + [int(x) for x in active_memory_kb[1]] + 
+                         [int(x) for x in swapped_memory_kb[1]] + [int(x) for x in free_memory_kb[1]])
+        
         plt.ylabel('Memory (KB)')
-        plt.legend()
+        plt.legend(loc='best', fontsize=8 if comparison else 10)
         plt.tight_layout()
         ax = plt.gca()
         self.force_numeric(ax)
         plt.xticks(rotation=45)
-        if t:
-            plt = self._set_figtext(plt, tstart)
+        
+        if comparison:
+            plt = self._set_figtext_comparison(plt, tstart)
+        else:
+            if t:
+                plt = self._set_figtext(plt, tstart)
+        
         # Set y-axis limit a bit higher than the max value for better display
-        all_memory = inactive_memory_kb_int + active_memory_kb_int + swapped_memory_kb_int + free_memory_kb_int
         if all_memory:
             ymax = max(all_memory) * 1.05
             ax.set_ylim(top=ymax)
         ax.set_ylim(bottom=0)
-        plt.savefig(f'{output_file_prefix}_memory_{now_unix}.{output_format}', bbox_inches='tight')
+        
+        if comparison:
+            plt.savefig(f'{output_file_prefix}_memory_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+        else:
+            plt.savefig(f'{output_file_prefix}_memory_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
 
     def _plot_cpu(self, user_cpu_percent, system_cpu_percent,
                  idle_cpu_percent, wait_cpu_percent,
                  steal_cpu_percent, t, tstart,
-                 output_file_prefix, output_format, now_unix):
+                 output_file_prefix, output_format, now_unix, comparison=False, filenames=None):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
-        plt.plot(t, [int(x) for x in user_cpu_percent], label='User CPU (%)')
-        plt.plot(t, [int(x) for x in system_cpu_percent], label='System CPU (%)')
-        plt.plot(t, [int(x) for x in idle_cpu_percent], label='Idle CPU (%)')
-        plt.plot(t, [int(x) for x in wait_cpu_percent], label='Wait CPU (%)')
-        plt.plot(t, [int(x) for x in steal_cpu_percent], label='Steal CPU (%)')
-        plt.title('CPU Usage (%)')
-        plt.xlabel('Seconds')
+        
+        if not comparison:
+            plt.plot(t, [int(x) for x in user_cpu_percent], label='User CPU (%)')
+            plt.plot(t, [int(x) for x in system_cpu_percent], label='System CPU (%)')
+            plt.plot(t, [int(x) for x in idle_cpu_percent], label='Idle CPU (%)')
+            plt.plot(t, [int(x) for x in wait_cpu_percent], label='Wait CPU (%)')
+            plt.plot(t, [int(x) for x in steal_cpu_percent], label='Steal CPU (%)')
+            plt.title('CPU Usage (%)')
+            plt.xlabel('Seconds')
+        else:
+            # Get filenames for labels
+            file1_label = filenames[0] if filenames else 'File 1'
+            file2_label = filenames[1] if filenames else 'File 2'
+            # File 1: darker colors with solid lines
+            plt.plot(t[:len(user_cpu_percent[0])], [int(x) for x in user_cpu_percent[0]], 
+                     label=f'User CPU (%) - {file1_label}', color='#e74c3c', linewidth=2)
+            plt.plot(t[:len(system_cpu_percent[0])], [int(x) for x in system_cpu_percent[0]], 
+                     label=f'System CPU (%) - {file1_label}', color='#3498db', linewidth=2)
+            plt.plot(t[:len(idle_cpu_percent[0])], [int(x) for x in idle_cpu_percent[0]], 
+                     label=f'Idle CPU (%) - {file1_label}', color='#2ecc71', linewidth=2)
+            plt.plot(t[:len(wait_cpu_percent[0])], [int(x) for x in wait_cpu_percent[0]], 
+                     label=f'Wait CPU (%) - {file1_label}', color='#f39c12', linewidth=2)
+            plt.plot(t[:len(steal_cpu_percent[0])], [int(x) for x in steal_cpu_percent[0]], 
+                     label=f'Steal CPU (%) - {file1_label}', color='#9b59b6', linewidth=2)
+            
+            # File 2: lighter colors with dashed lines
+            plt.plot(t[:len(user_cpu_percent[1])], [int(x) for x in user_cpu_percent[1]], 
+                     label=f'User CPU (%) - {file2_label}', color='#ec7063', linestyle='--', linewidth=2)
+            plt.plot(t[:len(system_cpu_percent[1])], [int(x) for x in system_cpu_percent[1]], 
+                     label=f'System CPU (%) - {file2_label}', color='#5dade2', linestyle='--', linewidth=2)
+            plt.plot(t[:len(idle_cpu_percent[1])], [int(x) for x in idle_cpu_percent[1]], 
+                     label=f'Idle CPU (%) - {file2_label}', color='#58d68d', linestyle='--', linewidth=2)
+            plt.plot(t[:len(wait_cpu_percent[1])], [int(x) for x in wait_cpu_percent[1]], 
+                     label=f'Wait CPU (%) - {file2_label}', color='#f8c471', linestyle='--', linewidth=2)
+            plt.plot(t[:len(steal_cpu_percent[1])], [int(x) for x in steal_cpu_percent[1]], 
+                     label=f'Steal CPU (%) - {file2_label}', color='#bb8fce', linestyle='--', linewidth=2)
+            plt.title('CPU Usage (%) - Comparison')
+            plt.xlabel('Relative Time (seconds)')
+        
         plt.ylabel('Percent')
-        plt.legend()
+        plt.legend(loc='best', fontsize=8 if comparison else 10)
         plt.tight_layout()
         ax = plt.gca()
         self.force_numeric(ax)
         plt.xticks(rotation=45)
-        if t:
-            plt = self._set_figtext(plt, tstart)
+        
+        if comparison:
+            plt = self._set_figtext_comparison(plt, tstart)
+        else:
+            if t:
+                plt = self._set_figtext(plt, tstart)
+        
         ax.set_ylim(bottom=0)
-        plt.savefig(f'{output_file_prefix}_cpu_{now_unix}.{output_format}', bbox_inches='tight')
+        
+        if comparison:
+            plt.savefig(f'{output_file_prefix}_cpu_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+        else:
+            plt.savefig(f'{output_file_prefix}_cpu_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
 
     def _plot_swap(self, swapped_memory_kb, swap_in_kb,
                   swap_out_kb, t, tstart,
-                  output_file_prefix, output_format, now_unix):
+                  output_file_prefix, output_format, now_unix, comparison=False, filenames=None):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
-        plt.plot(t, [int(x) for x in swapped_memory_kb], label='Swapped Memory (KB)')
-        plt.plot(t, [int(x) for x in swap_in_kb], label='Swap In (KB)')
-        plt.plot(t, [int(x) for x in swap_out_kb], label='Swap Out (KB)')
-        plt.title('Swap Usage')
-        plt.xlabel('Seconds')
+        
+        if not comparison:
+            plt.plot(t, [int(x) for x in swapped_memory_kb], label='Swapped Memory (KB)')
+            plt.plot(t, [int(x) for x in swap_in_kb], label='Swap In (KB)')
+            plt.plot(t, [int(x) for x in swap_out_kb], label='Swap Out (KB)')
+            plt.title('Swap Usage')
+            plt.xlabel('Seconds')
+        else:
+            # Get filenames for labels
+            file1_label = filenames[0] if filenames else 'File 1'
+            file2_label = filenames[1] if filenames else 'File 2'
+            # File 1: darker colors with solid lines
+            plt.plot(t[:len(swapped_memory_kb[0])], [int(x) for x in swapped_memory_kb[0]], 
+                     label=f'Swapped Memory (KB) - {file1_label}', color='#e74c3c', linewidth=2)
+            plt.plot(t[:len(swap_in_kb[0])], [int(x) for x in swap_in_kb[0]], 
+                     label=f'Swap In (KB) - {file1_label}', color='#3498db', linewidth=2)
+            plt.plot(t[:len(swap_out_kb[0])], [int(x) for x in swap_out_kb[0]], 
+                     label=f'Swap Out (KB) - {file1_label}', color='#f39c12', linewidth=2)
+            
+            # File 2: lighter colors with dashed lines
+            plt.plot(t[:len(swapped_memory_kb[1])], [int(x) for x in swapped_memory_kb[1]], 
+                     label=f'Swapped Memory (KB) - {file2_label}', color='#ec7063', linestyle='--', linewidth=2)
+            plt.plot(t[:len(swap_in_kb[1])], [int(x) for x in swap_in_kb[1]], 
+                     label=f'Swap In (KB) - {file2_label}', color='#5dade2', linestyle='--', linewidth=2)
+            plt.plot(t[:len(swap_out_kb[1])], [int(x) for x in swap_out_kb[1]], 
+                     label=f'Swap Out (KB) - {file2_label}', color='#f8c471', linestyle='--', linewidth=2)
+            plt.title('Swap Usage - Comparison')
+            plt.xlabel('Relative Time (seconds)')
+        
         plt.ylabel('Swap (KB)')
-        plt.legend()
+        plt.legend(loc='best', fontsize=8 if comparison else 10)
         plt.tight_layout()
         ax = plt.gca()
         self.force_numeric(ax)
         plt.xticks(rotation=45)
-        if t:
-            plt = self._set_figtext(plt, tstart)
+        
+        if comparison:
+            plt = self._set_figtext_comparison(plt, tstart)
+        else:
+            if t:
+                plt = self._set_figtext(plt, tstart)
+        
         ax.set_ylim(bottom=0)
-        plt.savefig(f'{output_file_prefix}_swap_{now_unix}.{output_format}', bbox_inches='tight')
+        
+        if comparison:
+            plt.savefig(f'{output_file_prefix}_swap_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+        else:
+            plt.savefig(f'{output_file_prefix}_swap_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
 
-    def _plot_io(self, blocks_in, blocks_out, t, tstart, output_file_prefix, output_format, now_unix):
+    def _plot_io(self, blocks_in, blocks_out, t, tstart, output_file_prefix, output_format, now_unix, comparison=False, filenames=None):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
-        plt.plot(t, [int(x) for x in blocks_in], label='Blocks In')
-        plt.plot(t, [int(x) for x in blocks_out], label='Blocks Out')
-        plt.title('IO')
-        plt.xlabel('Seconds')
+        
+        if not comparison:
+            plt.plot(t, [int(x) for x in blocks_in], label='Blocks In')
+            plt.plot(t, [int(x) for x in blocks_out], label='Blocks Out')
+            plt.title('IO')
+            plt.xlabel('Seconds')
+        else:
+            # Get filenames for labels
+            file1_label = filenames[0] if filenames else 'File 1'
+            file2_label = filenames[1] if filenames else 'File 2'
+            # File 1: darker colors with solid lines
+            plt.plot(t[:len(blocks_in[0])], [int(x) for x in blocks_in[0]], 
+                     label=f'Blocks In - {file1_label}', color='#3498db', linewidth=2)
+            plt.plot(t[:len(blocks_out[0])], [int(x) for x in blocks_out[0]], 
+                     label=f'Blocks Out - {file1_label}', color='#e74c3c', linewidth=2)
+            
+            # File 2: lighter colors with dashed lines
+            plt.plot(t[:len(blocks_in[1])], [int(x) for x in blocks_in[1]], 
+                     label=f'Blocks In - {file2_label}', color='#5dade2', linestyle='--', linewidth=2)
+            plt.plot(t[:len(blocks_out[1])], [int(x) for x in blocks_out[1]], 
+                     label=f'Blocks Out - {file2_label}', color='#ec7063', linestyle='--', linewidth=2)
+            plt.title('IO - Comparison')
+            plt.xlabel('Relative Time (seconds)')
+        
         plt.ylabel('Blocks')
-        plt.legend()
+        plt.legend(loc='best', fontsize=8 if comparison else 10)
         plt.tight_layout()
         ax = plt.gca()
         self.force_numeric(ax)
         plt.xticks(rotation=45)
-        if t:
-            plt = self._set_figtext(plt, tstart)
+        
+        if comparison:
+            plt = self._set_figtext_comparison(plt, tstart)
+        else:
+            if t:
+                plt = self._set_figtext(plt, tstart)
+        
         ax.set_ylim(bottom=0)
-        plt.savefig(f'{output_file_prefix}_io_{now_unix}.{output_format}', bbox_inches='tight')
+        
+        if comparison:
+            plt.savefig(f'{output_file_prefix}_io_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+        else:
+            plt.savefig(f'{output_file_prefix}_io_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
 
     def _set_figtext(self, plt, tstart):
         plt.figtext(0.99, 0.01, f"Start time: {tstart}", horizontalalignment='right', fontsize=8, color='gray')
         plt.figtext(0.99, 0.99, f"File: {self.filename}", horizontalalignment='right', fontsize=8, color='gray')
+        return plt
+
+    def _set_figtext_comparison(self, plt, tstart):
+        if isinstance(tstart, list) and len(tstart) == 2:
+            plt.figtext(0.99, 0.01, f"Start times - File 1: {tstart[0]} | File 2: {tstart[1]}", 
+                       horizontalalignment='right', fontsize=7, color='gray')
+        else:
+            plt.figtext(0.99, 0.01, f"Start time: {tstart}", 
+                       horizontalalignment='right', fontsize=8, color='gray')
         return plt
 
     class PlotMetrics:
