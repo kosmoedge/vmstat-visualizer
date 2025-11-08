@@ -84,7 +84,9 @@ def compare(file1, file2, metric, output_prefix,
         print(f">>> Filtering columns: {', '.join(column)}")
     print(f">>> Comparing {file1} and {file2} on metric: {metric}")
     parser1 = Parser(file1)
+    parser1.enabled_columns = column
     parser2 = Parser(file2)
+    parser2.enabled_columns = column
     parser1.parse()
     print(f">>> Parsed {len(parser1.timeseries)} time series entries from {file1}.")
     parser2.parse()

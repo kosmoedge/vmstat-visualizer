@@ -31,6 +31,7 @@ class Parser:
         self.filename = filename
         self.timeseries = []
         self.figure_size = (10, 4)
+        self.enabled_columns = []
 
     def parse(self):
         has_st, has_gu = check_vmstat_columns()
@@ -282,7 +283,6 @@ class Parser:
         ax = plt.gca()
         self.force_numeric(ax)
         plt.xticks(rotation=45)
-        
         if comparison:
             plt = self._set_figtext_comparison(plt, tstart)
         else:
@@ -292,8 +292,9 @@ class Parser:
         ax.set_ylim(bottom=0)
         # Use different filename for comparison mode
         suffix = 'comparison' if comparison else 'system_load'
+        column_suffix = '_{}'.format('_'.join(self.enabled_columns)) if self.enabled_columns else ''
         if comparison:
-            plt.savefig(f'{output_file_prefix}_system_load_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+            plt.savefig(f'{output_file_prefix}_system_load_comparison{column_suffix}_{now_unix}.{output_format}', bbox_inches='tight')
         else:
             plt.savefig(f'{output_file_prefix}_system_load_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
@@ -370,9 +371,9 @@ class Parser:
             ymax = max(all_memory) * 1.05
             ax.set_ylim(top=ymax)
         ax.set_ylim(bottom=0)
-
+        column_suffix = '_{}'.format('_'.join(self.enabled_columns)) if self.enabled_columns else ''
         if comparison:
-            plt.savefig(f'{output_file_prefix}_memory_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+            plt.savefig(f'{output_file_prefix}_memory_comparison{column_suffix}_{now_unix}.{output_format}', bbox_inches='tight')
         else:
             plt.savefig(f'{output_file_prefix}_memory_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
@@ -440,8 +441,9 @@ class Parser:
             if t:
                 plt = self._set_figtext(plt, tstart)
         ax.set_ylim(bottom=0)
+        column_suffix = '_{}'.format('_'.join(self.enabled_columns)) if self.enabled_columns else ''
         if comparison:
-            plt.savefig(f'{output_file_prefix}_cpu_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+            plt.savefig(f'{output_file_prefix}_cpu_comparison{column_suffix}_{now_unix}.{output_format}', bbox_inches='tight')
         else:
             plt.savefig(f'{output_file_prefix}_cpu_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
@@ -494,8 +496,9 @@ class Parser:
             if t:
                 plt = self._set_figtext(plt, tstart)
         ax.set_ylim(bottom=0)
+        column_suffix = '_{}'.format('_'.join(self.enabled_columns)) if self.enabled_columns else ''
         if comparison:
-            plt.savefig(f'{output_file_prefix}_swap_comparison_{now_unix}.{output_format}', bbox_inches='tight')
+            plt.savefig(f'{output_file_prefix}_swap_comparison{column_suffix}_{now_unix}.{output_format}', bbox_inches='tight')
         else:
             plt.savefig(f'{output_file_prefix}_swap_{now_unix}.{output_format}', bbox_inches='tight')
         plt.close()
