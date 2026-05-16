@@ -17,6 +17,22 @@ This tool is useful when you need system metrics but can't or don't want to run 
 
 Basically, if you can run `vmstat`, you can get charts. No agents, no daemons, no network dependencies.
 
+## How does it differ from top / htop?
+
+`top` and `htop` are live, interactive monitors — they show what's happening *right now* and the data is gone when you close the terminal. `vmstat-visualizer` is a post-hoc analysis tool for recorded `vmstat` logs.
+
+| | `top` / `htop` | `vmstat-visualizer` |
+|---|---|---|
+| **When** | Live, interactive | Offline, after-the-fact |
+| **Input** | Reads `/proc` directly | Reads saved `vmstat` log files |
+| **Output** | Terminal UI | PNG/SVG plot images |
+| **Granularity** | Per-process | System-wide aggregates |
+| **Comparison** | No | Compare two captures side-by-side |
+| **Shareability** | Screenshot or nothing | Generates artifacts for reports/tickets |
+| **Persistence** | Ephemeral | Works on logs captured hours/days ago |
+
+Think of it as: `vmstat` is the data recorder, `top`/`htop` are the live dashboards, and `vmstat-visualizer` is the flight data recorder playback tool.
+
 ## Requirements
 
 - Python 3.7+
