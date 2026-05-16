@@ -45,6 +45,15 @@ pyparsing = "3.2.5"
 python-dateutil = "2.9.0.post0"
 six = "1.17.0"
 
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: end-to-end CLI tests that produce file output",
+]
+
 [tool.setuptools_scm]
 write_to = "vmstat_visualizer/cli/__version__.py"
 
