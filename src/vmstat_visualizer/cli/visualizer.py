@@ -17,7 +17,7 @@ from vmstat_visualizer.parser.parser import Parser
     "-e",
     "--output-extension",
     default="png",
-    help="set the output extension for created files.",
+    help="set the output extension for created files. Use 'html' for interactive Plotly charts.",
 )
 def visualize(
     file, output_prefix, output_extension
@@ -29,10 +29,15 @@ def visualize(
     parser = Parser(file)
     parser.parse()
     print(f">>> Parsed {len(parser.timeseries)} time series entries.")
-    parser.plot(
-        output_file_prefix=f"{output_prefix}",
-        output_format=output_extension
-    )
+
+    if output_extension == "html":
+        from vmstat_visualizer.plotly_renderer import render_html
+        render_html(parser, output_file_prefix=output_prefix)
+    else:
+        parser.plot(
+            output_file_prefix=f"{output_prefix}",
+            output_format=output_extension
+        )
 
 
 @click.command("compare", no_args_is_help=True)
