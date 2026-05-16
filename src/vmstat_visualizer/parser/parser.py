@@ -7,8 +7,13 @@ import datetime
 import time
 import vmstat_visualizer.parser.timeseries as ts
 import matplotlib.pyplot as plt
-from vmstat_visualizer.checks.check import check_vmstat_columns
 from matplotlib.dates import DateFormatter
+
+
+KNOWN_VMSTAT_COLUMNS = {
+    'r', 'b', 'swpd', 'free', 'inact', 'active', 'buff', 'cache',
+    'si', 'so', 'bi', 'bo', 'in', 'cs', 'us', 'sy', 'id', 'wa', 'st', 'gu',
+}
 
 
 class Parser:
@@ -32,36 +37,45 @@ class Parser:
         self.timeseries = []
         self.figure_size = (10, 4)
         self.enabled_columns = []
+        self.detected_headers = None
+        self.vmstat_format = None
+
+    @staticmethod
+    def _detect_headers(line):
+        """Detect vmstat column headers from a header line.
+
+        Returns a list of column names if the line is a header, else None.
+        """
+        parts = line.strip().split()
+        known_hits = sum(1 for p in parts if p in KNOWN_VMSTAT_COLUMNS)
+        if known_hits >= 5:
+            return parts
+        return None
 
     def parse(self):
-        has_st, has_gu = check_vmstat_columns()
-        if has_st and has_gu:
-            print("System supports 'st' and 'gu' columns.")
-        else:
-            print(f"Missing columns: st={not has_st}, gu={not has_gu}")
+        time_regex = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
         with open(self.filename, 'r') as file:
             data = file.readlines()
             for line in data:
-                timeseries_entry = ts.Timeseries()
-                # Regex to match a timestamp like '2025-07-31 23:52:52'
-                time_regex = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
-                if ("procs" in line or "memory" in line or "cpu" in line) or ("free" in line or "inact" in line or "active" in line):
-                    continue
                 if not line.strip():
-                    continue 
+                    continue
+
+                detected = self._detect_headers(line)
+                if detected is not None:
+                    self.detected_headers = detected
+                    if 'buff' in detected and 'cache' in detected:
+                        self.vmstat_format = 'standard'
+                    elif 'inact' in detected and 'active' in detected:
+                        self.vmstat_format = 'active'
+                    continue
+
+                if "procs" in line or "memory" in line or "---" in line:
+                    continue
+
                 parts = line.strip().split()
                 if len(parts) < 3:
                     continue
-                # Skip lines where any part is not a digit
-                # if any(not part.isdigit() for part in parts):
-                #     continue
-                # isDataLine = True
-                # for part in parts:
-                #     if not part.replace('.', '', 1).replace('-', '', 1).isdigit():
-                #         isDataLine = False
-                #         break
-                # if not isDataLine:
-                #     continue
+
                 data_points = []
                 if len(parts) >= 2 and time_regex.match(" ".join(parts[-2:])):
                     time_column = " ".join(parts[-2:])
@@ -69,8 +83,12 @@ class Parser:
                 else:
                     time_column = " ".join(parts[:2])
                     data_points = [time_column] + [item.strip() for item in parts[2:]]
+
+                headers_with_time = list(self.detected_headers) + ['time'] if self.detected_headers else None
+
+                timeseries_entry = ts.Timeseries()
                 timeseries_entry.add_data_point(data_points)
-                timeseries_entry.commit_raw_data()
+                timeseries_entry.commit_raw_data(headers=headers_with_time)
                 self.timeseries.append(timeseries_entry)
 
     def plot(self, output_file_prefix='vmstat', output_format='png'):
@@ -90,10 +108,13 @@ class Parser:
         # 2. Memory Usage
         self.plot_metric('memory', inactive_memory_kb=plot_metrics.inactive_memory_kb,
                          active_memory_kb=plot_metrics.active_memory_kb,
+                         buff_memory_kb=plot_metrics.buff_memory_kb,
+                         cache_memory_kb=plot_metrics.cache_memory_kb,
                          swapped_memory_kb=plot_metrics.swapped_memory_kb,
                          free_memory_kb=plot_metrics.free_memory_kb, t=plot_metrics.t,
                          tstart=tstart, output_file_prefix=output_file_prefix,
-                         output_format=output_format, now_unix=now_unix)
+                         output_format=output_format, now_unix=now_unix,
+                         has_standard_memory=plot_metrics.has_standard_memory)
         # 3. CPU Usage
         self.plot_metric('cpu', user_cpu_percent=plot_metrics.user_cpu_percent,
                          system_cpu_percent=plot_metrics.system_cpu_percent,
@@ -223,7 +244,10 @@ class Parser:
             self._plot_memory(
                 kwargs.get('inactive_memory_kb'), kwargs.get('active_memory_kb'),
                 kwargs.get('swapped_memory_kb'), kwargs.get('free_memory_kb'), kwargs.get('t'),
-                kwargs.get('tstart'), kwargs.get('output_file_prefix'), kwargs.get('output_format'), kwargs.get('now_unix')
+                kwargs.get('tstart'), kwargs.get('output_file_prefix'), kwargs.get('output_format'), kwargs.get('now_unix'),
+                buff_memory_kb=kwargs.get('buff_memory_kb'),
+                cache_memory_kb=kwargs.get('cache_memory_kb'),
+                has_standard_memory=kwargs.get('has_standard_memory', False),
             )
         elif metric == 'system_load':
             self._plot_system_load(
@@ -300,23 +324,34 @@ class Parser:
         plt.close()
 
     def _plot_memory(self, inactive_memory_kb, active_memory_kb, swapped_memory_kb, free_memory_kb,
-                    t, tstart, output_file_prefix, output_format, now_unix, comparison=False, filenames=None):
+                    t, tstart, output_file_prefix, output_format, now_unix, comparison=False, filenames=None,
+                    buff_memory_kb=None, cache_memory_kb=None, has_standard_memory=False):
         import matplotlib.pyplot as plt
         plt.figure(figsize=self.figure_size)
 
         if not comparison:
-            # Convert memory values to integers for plotting
-            inactive_memory_kb_int = [int(x) for x in inactive_memory_kb]
-            active_memory_kb_int = [int(x) for x in active_memory_kb]
+            all_memory = []
             swapped_memory_kb_int = [int(x) for x in swapped_memory_kb]
             free_memory_kb_int = [int(x) for x in free_memory_kb]
-            plt.plot(t, inactive_memory_kb_int, label='Inactive Memory (KB)')
-            plt.plot(t, active_memory_kb_int, label='Active Memory (KB)')
             plt.plot(t, swapped_memory_kb_int, label='Swapped Memory (KB)')
             plt.plot(t, free_memory_kb_int, label='Free Memory (KB)')
+            all_memory += swapped_memory_kb_int + free_memory_kb_int
+
+            if has_standard_memory and buff_memory_kb and any(v is not None for v in buff_memory_kb):
+                buff_int = [int(x) for x in buff_memory_kb]
+                cache_int = [int(x) for x in cache_memory_kb]
+                plt.plot(t, buff_int, label='Buffers (KB)')
+                plt.plot(t, cache_int, label='Cache (KB)')
+                all_memory += buff_int + cache_int
+            else:
+                inactive_memory_kb_int = [int(x) for x in inactive_memory_kb]
+                active_memory_kb_int = [int(x) for x in active_memory_kb]
+                plt.plot(t, inactive_memory_kb_int, label='Inactive Memory (KB)')
+                plt.plot(t, active_memory_kb_int, label='Active Memory (KB)')
+                all_memory += inactive_memory_kb_int + active_memory_kb_int
+
             plt.title('Memory Usage')
             plt.xlabel('Seconds')
-            all_memory = inactive_memory_kb_int + active_memory_kb_int + swapped_memory_kb_int + free_memory_kb_int
         else:
             # Get filenames for labels
             file1_label = filenames[0] if filenames else 'File 1'
@@ -569,6 +604,8 @@ class Parser:
             self.free_memory_kb = []
             self.inactive_memory_kb = []
             self.active_memory_kb = []
+            self.buff_memory_kb = []
+            self.cache_memory_kb = []
             self.swapped_memory_kb = []
             self.user_cpu_percent = []
             self.system_cpu_percent = []
@@ -585,13 +622,15 @@ class Parser:
                 t_dt = datetime.datetime.strptime(ts_entry.time, '%Y-%m-%d %H:%M:%S')
                 if not relative_time:
                     self.t.append(t_dt.strftime('%M:%S'))
-                else: 
+                else:
                     self.t.append(next(self._counter))
                 self.run_queue.append(ts_entry.run_queue)
                 self.blocked_processes.append(ts_entry.blocked_processes)
                 self.free_memory_kb.append(ts_entry.free_memory_kb)
                 self.inactive_memory_kb.append(ts_entry.inactive_memory_kb)
                 self.active_memory_kb.append(ts_entry.active_memory_kb)
+                self.buff_memory_kb.append(ts_entry.buff_memory_kb)
+                self.cache_memory_kb.append(ts_entry.cache_memory_kb)
                 self.swapped_memory_kb.append(ts_entry.swapped_memory_kb)
                 self.user_cpu_percent.append(ts_entry.user_cpu_percent)
                 self.system_cpu_percent.append(ts_entry.system_cpu_percent)
@@ -603,6 +642,16 @@ class Parser:
                 self.swap_out_kb.append(ts_entry.swap_out_kb)
                 self.blocks_in.append(ts_entry.blocks_in)
                 self.blocks_out.append(ts_entry.blocks_out)
+
+        @property
+        def has_standard_memory(self):
+            """True when buff/cache columns are present (standard vmstat)."""
+            return any(v is not None for v in self.buff_memory_kb)
+
+        @property
+        def has_active_memory(self):
+            """True when inact/active columns are present (vmstat -a)."""
+            return any(v is not None for v in self.inactive_memory_kb)
 
         @staticmethod
         def _counter_gen():

@@ -64,11 +64,12 @@ def visualize(
                        "free", "si", "so",
                        "us", "sy",
                        "id", "wa", "st",
-                       "inact", "active"], case_sensitive=False),
+                       "inact", "active",
+                       "buff", "cache"], case_sensitive=False),
     multiple=True,
     help="""Specific column(s) to visualize. Can be specified multiple times. For each metric, the relevant columns are:\n
     - cpu: us, sy, id, wa, st\n
-    - memory: swpd, free, inact, active\n
+    - memory: swpd, free, inact, active (vmstat -a) or buff, cache (standard vmstat)\n
     - system_load: r, b, si, so\n
     Example: -c us -c sy -c id
     """
