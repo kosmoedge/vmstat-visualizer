@@ -4,6 +4,7 @@ This is the entrypoint to netcdfella app.
 import click
 
 import vmstat_visualizer.cli.visualizer as viz
+from vmstat_visualizer.cli.multi_compare import compare_multi
 
 
 @click.group(no_args_is_help=True)
@@ -17,6 +18,7 @@ def main():
     "main is the entrypoint of vmstat-visualizer"
     cli.add_command(viz.visualize)
     cli.add_command(viz.compare)
+    cli.add_command(compare_multi)
     cli(prog_name="vmstat-visualizer")
 
 
