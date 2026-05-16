@@ -1,10 +1,12 @@
 import os
 import glob
+import json
 import pytest
 from unittest.mock import patch
 from click.testing import CliRunner
 from vmstat_visualizer.cli.__main__ import cli
 import vmstat_visualizer.cli.visualizer as viz
+from vmstat_visualizer.cli.es_export import export_es
 
 
 @pytest.fixture(autouse=True)
@@ -12,6 +14,7 @@ def _register_commands():
     """Ensure commands are registered before each test."""
     cli.add_command(viz.visualize)
     cli.add_command(viz.compare)
+    cli.add_command(export_es)
 
 
 class TestCLIHelp:
@@ -21,6 +24,7 @@ class TestCLIHelp:
         assert result.exit_code == 0
         assert 'visualize' in result.output
         assert 'compare' in result.output
+        assert 'export-es' in result.output
 
     def test_visualize_help(self):
         runner = CliRunner()
@@ -112,3 +116,58 @@ class TestCompareCommand:
             'compare', active_log, active_log, '-m', 'bogus'
         ])
         assert result.exit_code != 0
+
+
+class TestExportEsCommand:
+    @patch("vmstat_visualizer.parser.parser.check_vmstat_columns",
+           return_value=(True, True))
+    def test_export_es_help_shows_expected_options(self, mock_check):
+        runner = CliRunner()
+        result = runner.invoke(cli, ['export-es', '--help'])
+        assert result.exit_code == 0
+        for needle in (
+            '--es-url',
+            '--es-api-key',
+            '--cloud-id',
+            '--index',
+            '--dry-run',
+            '--no-verify-certs',
+        ):
+            assert needle in result.output
+
+    @patch("vmstat_visualizer.parser.parser.check_vmstat_columns",
+           return_value=(True, True))
+    def test_export_es_dry_run_prints_bulk_to_stdout(self, mock_check,
+                                                     active_log):
+        runner = CliRunner()
+        result = runner.invoke(cli, ['export-es', '--dry-run', active_log])
+
+        assert result.exit_code == 0
+        out = result.output
+        json_lines = [ln for ln in out.splitlines() if ln.startswith('{')]
+        assert len(json_lines) == 10
+        assert json.loads(json_lines[0]) == {"index": {"_index": "vmstat"}}
+
+        doc = json.loads(json_lines[1])
+        assert doc.get("event.module") == "vmstat"
+        assert doc.get("file.path") == active_log
+
+        assert '"index"' in out and '"system.' in out
+
+    @patch("vmstat_visualizer.parser.parser.check_vmstat_columns",
+           return_value=(True, True))
+    def test_export_es_without_endpoint_errors(self, mock_check, active_log):
+        runner = CliRunner()
+        result = runner.invoke(cli, ['export-es', active_log])
+        assert result.exit_code != 0
+        low = result.output.lower()
+        assert 'es-url' in low or 'cloud-id' in low
+
+    @patch("vmstat_visualizer.parser.parser.check_vmstat_columns",
+           return_value=(True, True))
+    def test_export_es_empty_file_errors(self, mock_check, empty_log):
+        runner = CliRunner()
+        result = runner.invoke(cli, ['export-es', '--dry-run', empty_log])
+        assert result.exit_code == 1
+        assert 'No data found' in result.output
+
