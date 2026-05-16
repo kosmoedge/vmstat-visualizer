@@ -34,3 +34,10 @@ def example_log():
     return os.path.join(
         os.path.dirname(__file__), "..", "examples", "example.log"
     )
+
+
+@pytest.fixture
+def example_standard_log():
+    return os.path.join(
+        os.path.dirname(__file__), "..", "examples", "example_standard.log"
+    )
